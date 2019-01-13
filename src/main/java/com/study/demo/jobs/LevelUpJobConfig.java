@@ -23,19 +23,21 @@ import java.util.Optional;
 /**
  * Created by choi on 10/01/2019.
  */
-@AllArgsConstructor
 @Configuration
 public class LevelUpJobConfig {
 
-    @Autowired
-    private MemberRepository memberRepository;
+    private final MemberRepository memberRepository;
+
+    public LevelUpJobConfig(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
 
     @Bean
-    public Job levelUpJob(JobBuilderFactory jobBuilderFactory, Step levelUpJobStep) {
+    public Job levelUpJob(JobBuilderFactory jobBuilderFactory, Step levelUpJobStep, Step giveCouponJobStep) {
         return jobBuilderFactory.get("levelUpJob")
                 .preventRestart()
                 .start(levelUpJobStep)
-//                .next(otherStep)
+                .next(giveCouponJobStep)
                 .build();
     }
 
@@ -46,6 +48,16 @@ public class LevelUpJobConfig {
                 .reader(levelUpReader())
                 .processor(levelUpProcessor())
                 .writer(levelUpWriter())
+                .build();
+    }
+
+    @Bean
+    public Step giveCouponJobStep(StepBuilderFactory stepBuilderFactory) {
+        return stepBuilderFactory.get("sendCouponJobStep")
+                .chunk(10)
+//                .reader()
+//                .processor()
+//                .writer()
                 .build();
     }
 
@@ -77,9 +89,8 @@ public class LevelUpJobConfig {
         return item;
     }
 
-    private void giveCoupon(Member member) {
-        // 근데 등급 조정이랑 쿠폰 제공은 애초에 job을 나눠야 할 것 같은데...?
-    }
+//    private void giveCoupon(Member member) {
+//    }
 
     private ItemWriter<? super Member> levelUpWriter() {
         return items -> memberRepository.saveAll(items);
