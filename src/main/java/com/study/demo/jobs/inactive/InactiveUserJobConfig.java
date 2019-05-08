@@ -3,6 +3,7 @@ package com.study.demo.jobs.inactive;
 import com.study.demo.domain.User;
 import com.study.demo.domain.enums.Grade;
 import com.study.demo.domain.enums.UserStatus;
+import com.study.demo.jobs.listener.InactiveJobListener;
 import com.study.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -39,9 +40,10 @@ public class InactiveUserJobConfig {
     private int CHUNK_SIZE;
 
     @Bean
-    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, Step inactiveJobStep) {
+    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener, Step inactiveJobStep) {
         return jobBuilderFactory.get("inactiveUserJob")
                                 .preventRestart()
+                                .listener(inactiveJobListener)
                                 .start(inactiveJobStep)
                                 .build();
     }
