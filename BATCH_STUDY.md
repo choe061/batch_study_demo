@@ -8,7 +8,7 @@
 
 #### Spring Batch Architecture
 * 스프링 배치는 확장성있게 디자인되어 있음
-* Spring Batch의 Layer architecture, 아래 세 가지는 high-level component
+* Spring Batch의 Layer architecture, 아래 세 가지는 high-grade component
     * __Application__
         * 모든 batch jobs
         * 개발자가 코딩한 것들
