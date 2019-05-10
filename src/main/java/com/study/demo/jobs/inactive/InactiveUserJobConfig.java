@@ -4,6 +4,7 @@ import com.study.demo.domain.User;
 import com.study.demo.domain.enums.Grade;
 import com.study.demo.domain.enums.UserStatus;
 import com.study.demo.jobs.listener.InactiveJobListener;
+import com.study.demo.jobs.listener.InactiveStepListener;
 import com.study.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -11,6 +12,9 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.builder.FlowBuilder;
+import org.springframework.batch.core.job.flow.Flow;
+import org.springframework.batch.core.job.flow.FlowExecutionStatus;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -40,22 +44,33 @@ public class InactiveUserJobConfig {
     private int CHUNK_SIZE;
 
     @Bean
-    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener, Step inactiveJobStep) {
+    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener, Flow inactiveJobFlow) {
         return jobBuilderFactory.get("inactiveUserJob")
                                 .preventRestart()
                                 .listener(inactiveJobListener)
-                                .start(inactiveJobStep)
+                                .start(inactiveJobFlow) // Step 대신 Flow 를 등록하고, Flow 에서 Step 을 수행할지 말지 결정 및 수행한다.
+                                .end()
                                 .build();
     }
 
     @Bean
-    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, ListItemReader<User> inactiveUserReader) {
+    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, InactiveStepListener inactiveStepListener, ListItemReader<User> inactiveUserReader) {
         return stepBuilderFactory.get("inactiveUserStep")
                                  .<User, User> chunk(CHUNK_SIZE)
                                  .reader(inactiveUserReader)
                                  .processor(inactiveUserProcessor())
                                  .writer(inactiveUserWriter())
+                                 .listener(inactiveStepListener)
                                  .build();
+    }
+
+    @Bean
+    public Flow inactiveJobFlow(Step inactiveJobStep) {
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("inactiveJobFlow");
+        return flowBuilder.start(new InactiveJobExecutionDecider())
+                          .on(FlowExecutionStatus.FAILED.getName()).end()
+                          .on(FlowExecutionStatus.COMPLETED.getName()).to(inactiveJobStep)
+                          .end();
     }
 
     @Bean
