@@ -17,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByUpdatedDateBeforeAndStatusEquals(LocalDateTime localDateTime, UserStatus status);
 
+    List<User> findByUpdatedDateBeforeAndStatusEqualsAndGradeEquals(LocalDateTime localDateTime, UserStatus status, Grade grade);
+
 }

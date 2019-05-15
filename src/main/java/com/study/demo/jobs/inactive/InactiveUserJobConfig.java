@@ -7,9 +7,11 @@ import com.study.demo.jobs.listener.InactiveJobListener;
 import com.study.demo.jobs.listener.InactiveStepListener;
 import com.study.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.FlowBuilder;
@@ -24,6 +26,8 @@ import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 
 import javax.persistence.EntityManagerFactory;
 import java.time.LocalDateTime;
@@ -33,6 +37,7 @@ import java.util.*;
 /**
  * Created by choi on 10/01/2019.
  */
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class InactiveUserJobConfig {
@@ -44,24 +49,54 @@ public class InactiveUserJobConfig {
     private int CHUNK_SIZE;
 
     @Bean
-    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener, Flow inactiveJobFlow) {
+    public Job inactiveUserJob(JobBuilderFactory jobBuilderFactory, InactiveJobListener inactiveJobListener,
+                               Flow inactiveJobFlow, Step partitionerStep) {
         return jobBuilderFactory.get("inactiveUserJob")
                                 .preventRestart()
                                 .listener(inactiveJobListener)
-                                .start(inactiveJobFlow) // Step 대신 Flow 를 등록하고, Flow 에서 Step 을 수행할지 말지 결정 및 수행한다.
-                                .end()
+//                                .start(inactiveJobFlow) // Step 대신 Flow 를 등록하고, Flow 에서 Step 을 수행할지 말지 결정 및 수행한다.
+//                                .end()
+                                .start(partitionerStep)
                                 .build();
     }
 
     @Bean
-    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, InactiveStepListener inactiveStepListener, ListItemReader<User> inactiveUserReader) {
+    public Step inactiveJobStep(StepBuilderFactory stepBuilderFactory, InactiveStepListener inactiveStepListener,
+                                ListItemReader<User> inactiveUserReader2, TaskExecutor taskExecutor) {
         return stepBuilderFactory.get("inactiveUserStep")
                                  .<User, User> chunk(CHUNK_SIZE)
-                                 .reader(inactiveUserReader)
+                                 .reader(inactiveUserReader2)
                                  .processor(inactiveUserProcessor())
                                  .writer(inactiveUserWriter())
                                  .listener(inactiveStepListener)
+                                 .taskExecutor(taskExecutor)
+                                 .throttleLimit(2)
                                  .build();
+    }
+
+    @Bean
+    @JobScope
+    public Step partitionerStep(StepBuilderFactory stepBuilderFactory, Step inactiveJobStep) {
+        return stepBuilderFactory.get("inactiveUserStep")
+                                 .partitioner("partitionerStep", new InactiveUserPartitioner())
+                                 .gridSize(5)
+                                 .step(inactiveJobStep)
+                                 .taskExecutor(taskExecutor())
+                                 .build();
+    }
+
+    @Bean
+    @StepScope
+    public ListItemReader<User> inactiveUserReader2(@Value("#{stepExecutionContext[grade]}") String grade) {
+        log.info(Thread.currentThread().getName());
+        List<User> inactiveUsers = userRepository.findByUpdatedDateBeforeAndStatusEqualsAndGradeEquals(
+                LocalDateTime.now().minusYears(1), UserStatus.ACTIVE, Grade.valueOf(grade));
+        return new ListItemReader<>(inactiveUsers);
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor() {
+        return new SimpleAsyncTaskExecutor("Batch_Task");
     }
 
     @Bean
