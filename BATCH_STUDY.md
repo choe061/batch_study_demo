@@ -74,3 +74,14 @@
 1. Read : 회원 정보 조회
 2. Processing : 등급 재산정, 등급에 따라 쿠폰 발급
 3. Write : 디비에 저장
+
+#### JobInstance
+* 하나의 Job 실행 단위
+* 예
+    * 오늘 실행될 Job 은 JobInstance
+        * 만약 오늘 Job 이 실패한다면, 내일 동일한 JobInstance 를 수행
+            * 동일한 JobInstance 를 수행하지만, 다른 JobExecution
+        * 만약 오늘 Job 이 이상없이 끝나면, 내일 또 다른 JobInstance 를 수행
+        
+#### JobExecution
+* JobInstance 에 대한 한 번의 실행을 나타내는 객체

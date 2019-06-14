@@ -3,6 +3,7 @@ package com.study.demo;
 import com.study.demo.domain.enums.UserStatus;
 import com.study.demo.repository.UserRepository;
 import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.runner.RunWith;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobExecution;
@@ -33,8 +34,9 @@ public class InactiveUserJobTest {
     @Autowired
     private UserRepository userRepository;
 
+    @DisplayName("휴면 회원 전환 테스트")
     @Test
-    public void 휴먼_회원_전환_테스트() throws Exception {
+    public void test_inactiveUserJob() throws Exception {
         Date now = new Date();
         JobExecution jobExecution = jobLauncherTestUtils.launchJob(
                 new JobParametersBuilder().addDate("nowDate", now).toJobParameters()
